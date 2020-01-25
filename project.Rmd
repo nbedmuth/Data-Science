@@ -1,0 +1,289 @@
+---
+title: "project"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+library(modelr)
+library(magrittr)
+library(dplyr)
+library(ggplot2)
+library(reshape)
+library(mgcv)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+
+
+```
+
+```{r}
+setwd("~/Downloads/possible data /csv files")
+
+investments2 <- read.table("new_renewable_investment.csv", header = TRUE, sep = ",",stringsAsFactors = FALSE, check.names = FALSE)
+investments2$`2016` <- as.numeric(investments2$`2016`, "NA"=FALSE)
+investments2[is.na(investments2)] <- 0
+investments3<-investments2[,-c(2,3,4)]
+investments <- investments3[1:72,]
+df_melt = melt(investments, id = "(ten_million_dollar)")
+colnames(df_melt) <- c('id','year','value')
+#has all the new renewable energy investments.
+
+plot3<-ggplot(df_melt, aes(year)) + 
+  geom_col(aes(x=year, y=value,fill = id))
+plot3+labs(y="New Renewable Investments in ten Million dollars", x = "year")
+#histogram plot of REI
+
+world_investments<-investments3[80,1:6]
+world_investments = melt(world_investments, id = "(ten_million_dollar)")
+colnames(world_investments) <- c('id','year','value')
+#has onl the world renewable investments
+
+
+gdp2 <- read.table("gdp.csv", header = TRUE, sep = ",",stringsAsFactors = FALSE, check.names = FALSE)
+gdp2[2]<-NULL
+gdp <- gdp2[1:72,1:6]
+gdp[is.na(gdp)] <- 0
+gdp_melt=melt(gdp, id = "GDP")
+colnames(gdp_melt) <- c('id','year','value')
+#has all the gdp values
+
+gdp_melt$year<- as.character(gdp_melt$year, "NA"=FALSE)
+gdp_melt$year<- as.numeric(gdp_melt$year, "NA"=FALSE)
+#changing factors to numeric
+
+plot4<-ggplot(gdp_melt, aes(year)) + 
+  geom_col(aes(x=year, y=value,fill = id))
+plot4+labs(y="GDP in US dollars($)", x = "year")
+#histogram plot of gdp
+
+world_gdp<-gdp2[80,1:6]
+world_gdp = melt(world_gdp, id = "GDP")
+colnames(world_gdp) <- c('id','year','value')
+#has the world gdp values only
+
+emissions2 <- read.table("50 countries emissions.csv", header = TRUE, sep = ",",stringsAsFactors = FALSE, check.names = FALSE)
+emissions2[2]<-NULL
+emissions<-emissions2[,-c(2,3,4,5,6)]
+emissions_world<-emissions[80,1:6]
+emissions <- emissions[1:72,1:6]
+emissions_melt=melt(emissions, id = "Emissions")
+colnames(emissions_melt) <- c('id','year','value')
+#data for emissions
+
+emissions_world=melt(emissions_world, id="Emissions")
+colnames(emissions_world)<-c('id','year','emission_value')
+#has the world emissions
+
+
+plot2<-ggplot(emissions_melt, aes(year)) + 
+  geom_col(aes(x=year, y=value,fill = id))
+plot2+labs(y="Emissions in million metric tons", x = "year")
+#Histogram Plot for emissions
+
+
+
+world_gdp_investments<-world_gdp%>%
+  mutate(investments=world_investments$value)
+#for world's gdp vs investment relations
+
+world_gdp_investments[5]<-emissions_world[3]
+world_gdp_investments
+#has combined the three world datasets
+
+plot1<-ggplot(aes(x=investments, y=value), data=world_gdp_investments)+geom_line()
+plot1+ labs(title= "World GDP vs REI",
+                      y="gdp", x = "world investments")
+
+plot5<-ggplot(aes(x=investments, y=emission_value), data=world_gdp_investments)+geom_line()
+plot5+ labs(title= "World Emissions vs REI",
+                      y="emissions", x = "world investments")
+
+plot6<-ggplot(aes(x=value, y=emission_value), data=world_gdp_investments)+geom_line()
+plot6+ labs(title= "World Emissions vs GDP",
+                      y="emissions", x = "GDP")
+
+
+#World plots done
+
+
+gdp_values<-gdp_melt$value
+investment_values<-df_melt$value
+renew_vs_gdp3<-df_melt%>%
+  mutate(gdp_values=gdp_values)
+#has all the gdp and investment values
+
+
+
+#this section had additional plots
+
+
+#Emissions vs gdp vs investments below
+renew_vs_gdp3[,4]<-renew_vs_gdp3[,4]*10e+3
+emissions_values<-emissions_melt$value
+renew_vs_gdp_emissions<-renew_vs_gdp3%>%
+  mutate(emission_values=emissions_values)
+
+renew_vs_gdp_emissions<-renew_vs_gdp_emissions%>%
+  mutate(lsinvest=log(value))
+renew_vs_gdp_emissions<-renew_vs_gdp_emissions%>%
+  mutate(lgdp=log(gdp_values))
+renew_vs_gdp_emissions<-renew_vs_gdp_emissions%>%
+  mutate(lemissions=log(emission_values))
+
+all_data<-renew_vs_gdp_emissions
+names(all_data)[1]<-"Country"
+names(all_data)[3]<-"REI"
+#all_data #the combined data
+
+renew_vs_gdp_emissions2<-renew_vs_gdp_emissions%>%
+  filter(emission_values<4000) #removing outliers 
+
+#renew_vs_gdp_emissions2
+
+
+#plot for emissions and renewable investment values
+ggplot(aes(y =emission_values, x =value),data=renew_vs_gdp_emissions2) + geom_point()+geom_line()
+
+#plot for emissions and gdp_values
+ggplot(aes(y =emission_values, x =gdp_values),data=renew_vs_gdp_emissions2) + geom_point()+geom_line()
+
+#linear model for all regressors
+lm_all<-lm(emission_values~(gdp_values)+(REI), data=all_data)
+plot(lm_all, which=1)
+lm_all
+summary(lm_all)
+
+#gam model for all the regressors
+gam_all<-gam(emission_values~s(gdp_values)+s(REI), data=all_data)
+plot(gam_all, residuals=TRUE, cex=5)
+gam_all
+summary(gam_all)
+
+#Possible linear and log combinations
+lm_log_gdp<-lm(emission_values ~ log(gdp_values)+(value), data=renew_vs_gdp_emissions2)
+#plot(lm_log_gdp, which=1)
+
+
+lm_invest<-lm(emission_values ~ log(value+0.01)+ (gdp_values), data=renew_vs_gdp_emissions2)
+#plot(lm_invest,which=1)
+
+
+lm_log_all<-lm(emission_values~lgdp+log(value+0.01), data=renew_vs_gdp_emissions2)
+#plot(lm_log_all,which=1)
+
+
+lm_log_depend<-lm(lemissions~(gdp_values)+log(value+0.001), data=renew_vs_gdp_emissions2)
+#plot(lm_log_depend,which=1)
+
+
+#GAM model with factors
+gam_fac<-gam(emission_values~factor(id)+factor(year)+s(gdp_values)+s(value),data=renew_vs_gdp_emissions2)
+plot(gam_fac, residuals=FALSE)
+
+
+#the best model used with removing outlier China
+lm_accurate<-lm(emission_values~factor(id)+factor(year)+(gdp_values)+log(value+0.001),data=renew_vs_gdp_emissions2)
+plot(lm_accurate, which=1)
+
+#The best model used without removing the outlier china
+lm_accurate2<-lm(emission_values~factor(Country)+factor(year)+(gdp_values)+log(REI+0.001),data=all_data)
+plot(lm_accurate2, which=1)
+
+
+#single factor models , applicable for cross validation
+lm_facone<-lm(emission_values~factor(year)+(gdp_values)+log(value+0.001),data=renew_vs_gdp_emissions2)
+#plot(lm_facone,which=1)
+
+lm_facid<-lm(emission_values~factor(id)+(gdp_values)+log(value+0.001),data=renew_vs_gdp_emissions2)
+#plot(lm_facid,which=1)
+
+
+summary(lm_accurate)
+
+
+#cross validation1: (Removed the outlier point China)
+
+benchmark <- c()
+gam_error <- c()
+
+cv<- function(folds = 5){
+  # Construct the folds
+  fold_num <- rep(1:folds, length.out = nrow(all_data))
+  fold_ran <- sample(fold_num)
+
+for(i in 1:folds){
+  # Construct training and test sets
+  train <- all_data[fold_ran != i, ]
+  test <- all_data[fold_ran == i, ]
+
+  # Fit models to training data
+  benchmark_model <- lm(emission_values ~ factor(year)+gdp_values + log(REI+0.01), data = train)
+
+  gam_cross <- gam(emission_values ~ s(gdp_values) + s(REI), data = train)
+
+  # Test error
+    bench_test <- (log(test$emission_values) - predict(benchmark_model, newdata = test))^2
+    gam_test <- (log(test$emission_values) - predict(gam_cross, newdata = test))^2
+
+  # Store results
+    benchmark <- append(benchmark, bench_test)
+    gam_error <- append(gam_error, gam_test)
+
+  }
+  
+  # Test rmse
+  rmse_benchmark <- sqrt(sum(benchmark)/(length(benchmark)))
+  rmse_gam <- sqrt(sum(gam_error)/(length(gam_error)))
+
+  return(list(rmse_gam,rmse_benchmark))
+}
+
+# Replicate the 5-fold cross-validation 100 times
+  cvs <- replicate(100, cv()) 
+
+# Pull out the average rMSE for each model
+  cv.gam <- mean(sapply(cvs[1, ], mean))
+  cv.bench <- mean(sapply(cvs[2, ], mean))
+
+cv.bench
+cv.gam
+#Cross Validation2
+train_beta<-all_data[1:288,]
+test_beta<-all_data[289:360,]
+
+train_model<-lm(emission_values ~ factor(Country)+ gdp_values + log(REI+0.01), data = train_beta)
+
+test_pred<-predict(train_model, newdata=test_beta)
+
+residual<-test_beta$emission_values-test_pred
+
+rmse_test<-mean(residual^2)
+
+print(rmse_test)
+```
+
+```{r}
+
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+```{r}
+
+```
+
+```{r pressure, echo=FALSE}
+
+
